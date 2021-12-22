@@ -1,0 +1,26 @@
+[package]
+name = "my-esp-idf"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.51"
+esp-idf-sys = { version = "0.30.4", features = ["binstart"] }
+# Esto esta como esp-idf-hal
+embedded-hal = "=1.0.0-alpha.6"
+embedded-hal-0-2 = { package = "embedded-hal", version = "0.2", features = [
+    "unproven",
+] }
+
+embedded-svc = "0.16.1"
+esp-idf-hal = "0.32.5"
+esp-idf-svc = "0.36.7"
+log = "0.4"
+
+
+[patch.crates-io]
+esp-idf-sys = { git = "https://github.com/lkoba/esp-idf-sys" }
+esp-idf-hal = { git = "https://github.com/lkoba/esp-idf-hal" }
+esp-idf-svc = { git = "https://github.com/lkoba/esp-idf-svc" }

@@ -10,15 +10,21 @@ struct Motor<IN1: OutputPin, IN2: OutputPin, EN: PwmPin> {
     in1_pin: IN1,
     in2_pin: IN2,
     en_pin: EN,
+    pwm_max_duty: f32,
 }
 
 impl<IN1: OutputPin, IN2: OutputPin, EN: PwmPin> Motor<IN1, IN2, EN> {
-    fn new(in1_pin: IN1, in2_pin: IN2, en_pin: EN) -> Self {
-        Self {
+    fn new(in1_pin: IN1, in2_pin: IN2, en_pin: EN) -> Result<Self> {
+        let pwm_max_duty = match en_pin.get_max_duty() {
+            Ok(v) => v as f32,
+            Err(e) => anyhow::bail!("Could not get PWM pin max duty cycle: {:?}", e),
+        };
+        Ok(Self {
             in1_pin,
             in2_pin,
             en_pin,
-        }
+            pwm_max_duty,
+        })
     }
 
     pub fn set_direction_and_speed(&mut self, vector: f32) -> Result<()> {
@@ -32,13 +38,10 @@ impl<IN1: OutputPin, IN2: OutputPin, EN: PwmPin> Motor<IN1, IN2, EN> {
             self.in1_pin.set_low()?;
             self.in2_pin.set_high()?;
         }
-        // En c++ teniamos la velocidad de 63 a 255.
-        self.en_pin
-            .set_duty(
-                (self.en_pin.get_max_duty().unwrap() as f32 * vector.abs()).round()
-                    as esp_idf_hal::gpio::PwmDuty,
-            )
-            .unwrap();
+        let duty = (self.pwm_max_duty * vector.abs()).round() as esp_idf_hal::gpio::PwmDuty;
+        if let Err(e) = self.en_pin.set_duty(duty) {
+            anyhow::bail!("Error setting PWM pin duty cycle: {:?}", e);
+        }
         Ok(())
     }
 }
@@ -65,11 +68,11 @@ impl<IN1: OutputPin, IN2: OutputPin, IN3: OutputPin, IN4: OutputPin, ENA: PwmPin
         in4_pin: IN4,
         ena_pin: ENA,
         enb_pin: ENB,
-    ) -> Self {
-        Self {
-            motor1: Motor::new(in1_pin, in2_pin, ena_pin),
-            motor2: Motor::new(in3_pin, in4_pin, enb_pin),
-        }
+    ) -> Result<Self> {
+        Ok(Self {
+            motor1: Motor::new(in1_pin, in2_pin, ena_pin)?,
+            motor2: Motor::new(in3_pin, in4_pin, enb_pin)?,
+        })
     }
 }
 

@@ -31,8 +31,7 @@ impl Wifi {
             netif_stack.clone(),
             sys_loop_stack.clone(),
             default_nvs.clone(),
-        )
-        .unwrap();
+        )?;
         Ok(Wifi {
             wifi,
             power_save_mode,

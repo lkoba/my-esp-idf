@@ -51,12 +51,16 @@ impl<P: PwmPinWithMicros> ServoI for Servo<P> {
     }
 
     fn enable(&mut self) -> Result<()> {
-        self.pin.enable().unwrap();
+        if let Err(_) = self.pin.enable() {
+            anyhow::bail!("Error enabling servo pin");
+        }
         Ok(())
     }
 
     fn disable(&mut self) -> Result<()> {
-        self.pin.disable().unwrap();
+        if let Err(_) = self.pin.disable() {
+            anyhow::bail!("Error disabling servo pin");
+        }
         Ok(())
     }
 }

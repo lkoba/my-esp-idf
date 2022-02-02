@@ -24,15 +24,15 @@ struct State {
 }
 
 impl State {
-    fn nvs(&mut self) -> Arc<EspDefaultNvs> {
-        match &self.nvs {
+    fn nvs(&mut self) -> Result<Arc<EspDefaultNvs>> {
+        Ok(match &self.nvs {
             Some(nvs) => nvs.clone(),
             None => {
-                let nvs = Arc::new(EspDefaultNvs::new().unwrap());
+                let nvs = Arc::new(EspDefaultNvs::new()?);
                 self.nvs = Some(nvs.clone());
                 nvs
             }
-        }
+        })
     }
 }
 
@@ -50,7 +50,7 @@ pub fn connect_wifi() -> Result<()> {
                 match crate::wifi::Wifi::new_no_auto(
                     Arc::new(esp_idf_svc::netif::EspNetifStack::new()?),
                     Arc::new(esp_idf_svc::sysloop::EspSysLoopStack::new()?),
-                    state.nvs(),
+                    state.nvs()?,
                     // Power saving mode is required for concurrent wifi and ble.
                     if state.ble.is_none() {
                         esp_idf_sys::wifi_ps_type_t_WIFI_PS_NONE
@@ -83,7 +83,7 @@ pub fn connect_ble() -> Result<crate::ble::SafeBle> {
                 }
                 None => {}
             };
-            match crate::ble::Ble::new_no_auto(state.nvs()) {
+            match crate::ble::Ble::new_no_auto(state.nvs()?) {
                 Ok(b) => {
                     state.ble = Some(b.clone());
                     Ok(b)

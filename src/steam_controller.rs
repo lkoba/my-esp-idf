@@ -11,20 +11,20 @@ static STEAM_CONTROLLER_BUTTON_A: u32 = 0x800000;
 static STEAM_CONTROLLER_BUTTON_X: u32 = 0x400000;
 static STEAM_CONTROLLER_BUTTON_B: u32 = 0x200000;
 static STEAM_CONTROLLER_BUTTON_Y: u32 = 0x100000;
-// static STEAM_CONTROLLER_BUTTON_LEFT_UPPER_PADDLE: u32 = 0x080000;
-// static STEAM_CONTROLLER_BUTTON_RIGHT_UPPER_PADDLE: u32 = 0x040000;
-// static STEAM_CONTROLLER_BUTTON_LEFT_PADDLE: u32 = 0x020000;
-// static STEAM_CONTROLLER_BUTTON_RIGHT_PADDLE: u32 = 0x010000;
-// static STEAM_CONTROLLER_BUTTON_LEFT_INNER_PADDLE: u32 = 0x008000;
-// static STEAM_CONTROLLER_BUTTON_NAV_RIGHT: u32 = 0x004000;
-// static STEAM_CONTROLLER_BUTTON_STEAM: u32 = 0x002000;
-// static STEAM_CONTROLLER_BUTTON_NAV_LEFT: u32 = 0x001000;
-// static STEAM_CONTROLLER_BUTTON_JOYSTICK: u32 = 0x000040;
-// static STEAM_CONTROLLER_BUTTON_RIGHT_TOUCH: u32 = 0x000010;
-// static STEAM_CONTROLLER_BUTTON_LEFT_TOUCH: u32 = 0x000008;
-// static STEAM_CONTROLLER_BUTTON_RIGHT_PAD: u32 = 0x000004;
-// static STEAM_CONTROLLER_BUTTON_LEFT_PAD: u32 = 0x000002;
-// static STEAM_CONTROLLER_BUTTON_RIGHT_INNER_PADDLE: u32 = 0x000001;
+static STEAM_CONTROLLER_BUTTON_LEFT_BUMPER: u32 = 0x080000;
+static STEAM_CONTROLLER_BUTTON_RIGHT_BUMPER: u32 = 0x040000;
+static STEAM_CONTROLLER_BUTTON_LEFT_TRIGGER: u32 = 0x020000;
+static STEAM_CONTROLLER_BUTTON_RIGHT_TRIGGER: u32 = 0x010000;
+static STEAM_CONTROLLER_BUTTON_LEFT_PADDLE: u32 = 0x008000;
+static STEAM_CONTROLLER_BUTTON_RIGHT_PADDLE: u32 = 0x000001;
+static STEAM_CONTROLLER_BUTTON_NAV_RIGHT: u32 = 0x004000;
+static STEAM_CONTROLLER_BUTTON_NAV_LEFT: u32 = 0x001000;
+static STEAM_CONTROLLER_BUTTON_STEAM: u32 = 0x002000;
+static STEAM_CONTROLLER_BUTTON_JOYSTICK: u32 = 0x000040;
+static STEAM_CONTROLLER_BUTTON_RIGHT_PAD_TOUCH: u32 = 0x000010;
+static STEAM_CONTROLLER_BUTTON_RIGHT_PAD_CLICK: u32 = 0x000004;
+static STEAM_CONTROLLER_BUTTON_LEFT_PAD_TOUCH: u32 = 0x000008;
+static STEAM_CONTROLLER_BUTTON_LEFT_PAD_CLICK: u32 = 0x000002;
 static STEAM_CONTROLLER_FLAG_REPORT: u16 = 0x0004;
 static STEAM_CONTROLLER_FLAG_BUTTONS: u16 = 0x0010;
 static STEAM_CONTROLLER_FLAG_PADDLES: u16 = 0x0020;
@@ -38,12 +38,30 @@ static EVENTS_CHR_UUID: &str = "100F6C33-1735-4313-B402-38567131E5F3";
 static STEAM_MODE_CHR_UUID: &str = "100F6C34-1735-4313-B402-38567131E5F3";
 static STEAM_MODE_COMMAND: &[u8] = &[0xc0, 0x87, 0x03, 0x08, 0x07, 0x00];
 
+#[derive(Debug)]
 pub enum Button {
     South,
     North,
     East,
     West,
+    LeftTrigger,
+    LeftTrigger2,
+    RightTrigger,
+    RightTrigger2,
+    LeftBumper,
+    RightBumper,
+    LeftPaddle,
+    RightPaddle,
+    NavLeft,
+    NavRight,
+    Steam,
+    LeftStick,
+    LeftPad,
+    LeftPad2,
+    RightPad,
+    RightPad2,
 }
+#[derive(Debug)]
 pub enum Axis {
     LeftPadX,
     LeftPadY,
@@ -52,6 +70,7 @@ pub enum Axis {
     LeftStickX,
     LeftStickY,
 }
+#[derive(Debug)]
 pub enum SteamControllerEvent {
     ButtonChanged(Button, f32),
     AxisChanged(Axis, f32),
@@ -218,14 +237,136 @@ fn decode_steam_controller_packet(
                 events.push(SteamControllerEvent::ButtonChanged(Button::North, 0.0));
             }
 
+            if (buttons & STEAM_CONTROLLER_BUTTON_Y) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::North, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_Y) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::North, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_LEFT_BUMPER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftBumper, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_LEFT_BUMPER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftBumper, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_RIGHT_BUMPER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightBumper,
+                    1.0,
+                ));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_RIGHT_BUMPER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightBumper,
+                    0.0,
+                ));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_LEFT_TRIGGER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::LeftTrigger,
+                    1.0,
+                ));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_LEFT_TRIGGER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::LeftTrigger,
+                    0.0,
+                ));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_RIGHT_TRIGGER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightTrigger,
+                    1.0,
+                ));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_RIGHT_TRIGGER) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightTrigger,
+                    0.0,
+                ));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_LEFT_PADDLE) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPaddle, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_LEFT_PADDLE) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPaddle, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PADDLE) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightPaddle,
+                    1.0,
+                ));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PADDLE) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(
+                    Button::RightPaddle,
+                    0.0,
+                ));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_NAV_LEFT) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::NavLeft, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_NAV_LEFT) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::NavLeft, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_NAV_RIGHT) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::NavRight, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_NAV_RIGHT) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::NavRight, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_STEAM) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::Steam, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_STEAM) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::Steam, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_JOYSTICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftStick, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_JOYSTICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftStick, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_LEFT_PAD_CLICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPad2, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_LEFT_PAD_CLICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPad2, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_LEFT_PAD_TOUCH) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPad, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_LEFT_PAD_TOUCH) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::LeftPad, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PAD_CLICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::RightPad2, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PAD_CLICK) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::RightPad2, 0.0));
+            }
+
+            if (buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PAD_TOUCH) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::RightPad, 1.0));
+            } else if (*prev_buttons & STEAM_CONTROLLER_BUTTON_RIGHT_PAD_TOUCH) != 0 {
+                events.push(SteamControllerEvent::ButtonChanged(Button::RightPad, 0.0));
+            }
+
             *prev_buttons = buttons;
         }
 
         if (flags & STEAM_CONTROLLER_FLAG_PADDLES) != 0 {
-            //       uint8_t left = buf[pos];
-            //       uint8_t right = buf[pos+1];
+            let left = data[pos];
+            let right = data[pos + 1];
             pos += 2;
             flags &= !STEAM_CONTROLLER_FLAG_PADDLES;
+            events.push(SteamControllerEvent::ButtonChanged(
+                Button::LeftTrigger2,
+                left as f32 / 255.0,
+            ));
+            events.push(SteamControllerEvent::ButtonChanged(
+                Button::RightTrigger2,
+                right as f32 / 255.0,
+            ));
         }
 
         if (flags & STEAM_CONTROLLER_FLAG_JOYSTICK) != 0 {

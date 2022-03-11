@@ -1,12 +1,16 @@
 use anyhow::Result;
 
-use crate::ble::{
-    client::{BleClient, BleConnectEvent},
-    scan::BleScan,
-    uuid::BleUUID,
-    SafeBle,
+use crate::{
+    ble::{
+        client::{BleClient, BleConnectEvent},
+        scan::BleScan,
+        uuid::BleUUID,
+        SafeBle,
+    },
+    get_preference, write_preference,
 };
 
+static BONDED_MAC_PREFERENCE_KEY: &str = "sc_bonded_mac";
 static STEAM_CONTROLLER_BUTTON_A: u32 = 0x800000;
 static STEAM_CONTROLLER_BUTTON_X: u32 = 0x400000;
 static STEAM_CONTROLLER_BUTTON_B: u32 = 0x200000;
@@ -108,14 +112,32 @@ where
     // Find the steam controller device and connect to it.
     let mut dev = {
         let mut scan = BleScan::new(ble.clone());
+        let paired_address: Option<String> = get_preference(BONDED_MAC_PREFERENCE_KEY)?;
         let scan_rx = scan.start()?;
+        match &paired_address {
+            Some(addr) => log::info!(
+                "Scanning for previously bonded device {} or a controller in pairing mode ...",
+                addr,
+            ),
+            None => log::info!("Scanning for a controller in pairing mode ..."),
+        }
         loop {
             match scan_rx.recv() {
                 Ok(dev) => {
                     log::info!("Found device: {}", dev);
-                    if dev.address().to_string().starts_with("F7:") {
+                    let dev_addr = dev.address().to_string();
+                    let is_bonded = match &paired_address {
+                        Some(addr) => dev_addr == *addr,
+                        None => false,
+                    };
+                    if is_bonded || dev.name() == "SteamController" {
                         scan.stop()?;
                         client.connect(&dev)?;
+                        if !is_bonded {
+                            // If it's a new connection save the address so we
+                            // can bond without pairing mode.
+                            write_preference(BONDED_MAC_PREFERENCE_KEY, dev_addr)?;
+                        }
                         break dev;
                     }
                 }

@@ -4,6 +4,7 @@ pub mod ble;
 pub mod event;
 pub mod l298_motor_controller;
 pub mod servo;
+mod state;
 pub mod steam_controller;
 pub mod wifi;
 pub mod wifible;
@@ -11,6 +12,8 @@ pub mod wifible;
 pub use crate::wifible::*;
 use anyhow::Result;
 pub use embedded_hal_0_2::digital::v2::PinState;
+use embedded_svc::storage::Storage;
+use esp_idf_svc::nvs_storage::EspNvsStorage;
 
 pub trait OutputPin = embedded_hal_0_2::digital::v2::OutputPin<Error = esp_idf_sys::EspError>;
 pub trait PwmPin = embedded_hal::pwm::blocking::PwmPin<Duty = esp_idf_hal::gpio::PwmDuty>;
@@ -191,6 +194,73 @@ pub fn init() {
     // // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
+}
+
+pub enum PreferenceValue {
+    String(String),
+    U8(u8),
+}
+
+impl From<String> for PreferenceValue {
+    fn from(val: String) -> Self {
+        PreferenceValue::String(val)
+    }
+}
+
+impl From<u8> for PreferenceValue {
+    fn from(val: u8) -> Self {
+        PreferenceValue::U8(val)
+    }
+}
+
+pub fn write_preference<T>(key: &str, value: T) -> Result<()>
+where
+    PreferenceValue: From<T>,
+{
+    let value = PreferenceValue::from(value);
+    crate::state::with_state(|state| {
+        let mut storage = EspNvsStorage::new_default(state.nvs()?, "my-esp-idf", true)?;
+        match value {
+            PreferenceValue::String(value) => {
+                storage.put_raw(key, value.as_bytes().to_vec())?;
+            }
+            PreferenceValue::U8(value) => {
+                storage.put_raw(key, vec![value])?;
+            }
+        }
+        Ok(())
+    })
+}
+
+pub struct PreferenceValueDecoder(Vec<u8>);
+impl From<PreferenceValueDecoder> for String {
+    fn from(value: PreferenceValueDecoder) -> Self {
+        std::str::from_utf8(value.0.as_slice()).unwrap().to_owned()
+    }
+}
+impl From<PreferenceValueDecoder> for u8 {
+    fn from(value: PreferenceValueDecoder) -> Self {
+        value.0[0]
+    }
+}
+
+pub fn get_preference<T>(key: &str) -> Result<Option<T>>
+where
+    T: std::convert::From<PreferenceValueDecoder>,
+{
+    crate::state::with_state(|state| {
+        let storage = EspNvsStorage::new_default(
+            state.nvs()?,
+            "my-esp-idf",
+            // Lo ponemos en read_write: true para que cree el namespace de ser
+            // necesario.
+            true,
+        )?;
+        Ok(match storage.get_raw(key)? {
+            Some(value) => Some(PreferenceValueDecoder(value).into()),
+            None => None,
+        })
+    })
 }
 
 // fn read_touch() {

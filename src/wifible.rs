@@ -5,45 +5,13 @@
 // RUST_ESP32_WIFI_SSID and RUST_ESP32_WIFI_PASS when compiling.
 
 use anyhow::Result;
-use esp_idf_hal::mutex::Mutex;
-use esp_idf_svc::nvs::EspDefaultNvs;
-use std::{cell::RefCell, sync::Arc};
+use std::sync::Arc;
 
 static WIFI_SSID: &str = env!("RUST_ESP32_WIFI_SSID");
 static WIFI_PASS: &str = env!("RUST_ESP32_WIFI_PASS");
-static mut STATE: Mutex<RefCell<State>> = Mutex::new(RefCell::new(State {
-    wifi: None,
-    ble: None,
-    nvs: None,
-}));
-
-struct State {
-    wifi: Option<crate::wifi::Wifi>,
-    ble: Option<crate::ble::SafeBle>,
-    nvs: Option<Arc<EspDefaultNvs>>,
-}
-
-impl State {
-    fn nvs(&mut self) -> Result<Arc<EspDefaultNvs>> {
-        Ok(match &self.nvs {
-            Some(nvs) => nvs.clone(),
-            None => {
-                let nvs = Arc::new(EspDefaultNvs::new()?);
-                self.nvs = Some(nvs.clone());
-                nvs
-            }
-        })
-    }
-}
-
-fn with_state<T>(cb: impl FnOnce(&mut State) -> T) -> T {
-    let state_cell = unsafe { STATE.lock() };
-    let state = &mut *state_cell.borrow_mut();
-    cb(state)
-}
 
 pub fn connect_wifi() -> Result<()> {
-    with_state(|state| {
+    crate::state::with_state(|state| {
         match &state.wifi {
             Some(_) => {}
             None => {
@@ -74,7 +42,7 @@ pub fn connect_wifi() -> Result<()> {
 }
 
 pub fn connect_ble() -> Result<crate::ble::SafeBle> {
-    with_state(|state| match &state.ble {
+    crate::state::with_state(|state| match &state.ble {
         Some(ble) => Ok(ble.clone()),
         None => {
             match &mut state.wifi {
